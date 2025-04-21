@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { useAuth } from "../AuthContext";
 
 // Icon components
 const IconMap = () => (
@@ -41,8 +43,15 @@ const IconUpload = () => (
   </svg>
 );
 
-const AddMemory = ({ isOpen, onClose }) => {
+const IconLoading = () => (
+  <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 12a9 9 0 1 1-6.219-8.56"></path>
+  </svg>
+);
+
+const AddMemory = ({ isOpen, onClose, username }) => {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [formData, setFormData] = useState({
     location: "",
     date: "",
@@ -50,6 +59,8 @@ const AddMemory = ({ isOpen, onClose }) => {
     image: null,
     imagePreview: null
   });
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -62,6 +73,11 @@ const AddMemory = ({ isOpen, onClose }) => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError("File size exceeds 5MB limit");
+        return;
+      }
+      
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData({
@@ -71,29 +87,80 @@ const AddMemory = ({ isOpen, onClose }) => {
         });
       };
       reader.readAsDataURL(file);
+      setError(null);
     }
   };
   
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Here you would typically process the form data
-    // For example, send it to an API endpoint
-    console.log("Submitting memory:", formData);
+    // Validate required fields
+    if (!formData.image) {
+      setError("Please upload an image");
+      return;
+    }
+    if (!formData.location || !formData.date || !formData.description) {
+      setError("Please fill all required fields");
+      return;
+    }
     
-    // Reset form and close modal
-    setFormData({
-      location: "",
-      date: "",
-      description: "",
-      image: null,
-      imagePreview: null
-    });
+    setIsLoading(true);
+    setError(null);
     
-    onClose();
-    
-    // Optionally, navigate to a different page after submission
-    // navigate("/dashboard");
+    try {
+      if (!token) {
+        throw new Error("Authentication token not found - please login again");
+      }
+      
+      const data = new FormData();
+      data.append("file", formData.image); // Note: backend expects "file" not "image"
+      data.append("username", username);
+      data.append("location", formData.location);
+      data.append("date", formData.date);
+      data.append("description", formData.description);
+      
+      // Log FormData contents for debugging
+      for (let [key, value] of data.entries()) {
+        console.log(key, value);
+      }
+      
+      const response = await axios.post(
+        "http://localhost:8080/api/memory-upload", 
+        data,
+        {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "multipart/form-data"
+          }
+        }
+      );
+      
+      console.log("Memory created successfully:", response.data);
+      
+      // Reset form
+      setFormData({
+        location: "",
+        date: "",
+        description: "",
+        image: null,
+        imagePreview: null
+      });
+      
+      onClose();
+      
+      // Optionally refresh the page to show new memory
+      window.location.reload();
+      
+    } catch (err) {
+      console.error("Error creating memory:", err);
+      setError(
+        err.response?.data?.message || 
+        err.message || 
+        "Failed to upload memory. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   if (!isOpen) return null;
@@ -116,6 +183,7 @@ const AddMemory = ({ isOpen, onClose }) => {
           <button 
             onClick={onClose}
             className="p-2 rounded-full hover:bg-blue-100 text-blue-600 transition-all"
+            disabled={isLoading}
           >
             <IconX />
           </button>
@@ -123,6 +191,12 @@ const AddMemory = ({ isOpen, onClose }) => {
         
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6">
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+              {error}
+            </div>
+          )}
+          
           <div className="space-y-4">
             {/* Location input */}
             <div>
@@ -141,6 +215,7 @@ const AddMemory = ({ isOpen, onClose }) => {
                   placeholder="e.g. Paris, France"
                   className="w-full pl-10 pr-4 py-2 bg-blue-50/50 border border-blue-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -161,6 +236,7 @@ const AddMemory = ({ isOpen, onClose }) => {
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-2 bg-blue-50/50 border border-blue-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -178,6 +254,7 @@ const AddMemory = ({ isOpen, onClose }) => {
                 rows="3"
                 className="w-full p-3 bg-blue-50/50 border border-blue-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                 required
+                disabled={isLoading}
               ></textarea>
             </div>
             
@@ -198,6 +275,7 @@ const AddMemory = ({ isOpen, onClose }) => {
                       type="button"
                       onClick={() => setFormData({...formData, image: null, imagePreview: null})}
                       className="absolute top-2 right-2 p-1 rounded-full bg-red-500 text-white hover:bg-red-600 transition-all"
+                      disabled={isLoading}
                     >
                       <IconX />
                     </button>
@@ -218,7 +296,8 @@ const AddMemory = ({ isOpen, onClose }) => {
                       name="image"
                       accept="image/*"
                       onChange={handleImageChange}
-                      className="hidden" 
+                      className="hidden"
+                      disabled={isLoading}
                     />
                   </label>
                 )}
@@ -230,10 +309,15 @@ const AddMemory = ({ isOpen, onClose }) => {
           <div className="mt-6">
             <button
               type="submit"
-              className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-lg hover:shadow-blue-500/30 transition-all"
+              className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:shadow-lg hover:shadow-blue-500/30 transition-all disabled:opacity-70"
+              disabled={isLoading}
             >
-              <IconUpload className="mr-2" />
-              Save Memory
+              {isLoading ? (
+                <IconLoading className="mr-2" />
+              ) : (
+                <IconUpload className="mr-2" />
+              )}
+              {isLoading ? "Uploading..." : "Save Memory"}
             </button>
           </div>
         </form>

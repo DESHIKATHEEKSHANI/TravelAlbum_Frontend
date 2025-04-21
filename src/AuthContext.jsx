@@ -11,47 +11,41 @@ export const useAuth = () => {
 // Auth provider component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null); // Store token in state
   const [loading, setLoading] = useState(true);
 
   // Function to check if user is authenticated on component mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const storedToken = localStorage.getItem('token');
         
-        if (token) {
-          // You can validate the token with your backend here
-          // For now, we'll just extract a username from the token
-          // In a real app, you would make an API call to validate the token
-          
+        if (storedToken) {
           try {
-            // Make a request to your backend to validate the token
+            // Validate the token with your backend
             const response = await fetch('http://localhost:8080/api/auth/validate', {
               method: 'GET',
               headers: {
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${storedToken}`
               }
             });
             
             if (response.ok) {
               const userData = await response.json();
               setUser(userData.username);
+              setToken(storedToken); // Set the token in state
             } else {
               // Token invalid or expired
-              localStorage.removeItem('token');
-              setUser(null);
+              clearAuth();
             }
           } catch (error) {
             console.error("Token validation error:", error);
-            localStorage.removeItem('token');
-            setUser(null);
+            clearAuth();
           }
         }
       } catch (error) {
         console.error("Auth check failed:", error);
-        // Clear invalid token
-        localStorage.removeItem('token');
-        setUser(null);
+        clearAuth();
       } finally {
         setLoading(false);
       }
@@ -59,6 +53,13 @@ export const AuthProvider = ({ children }) => {
 
     checkAuth();
   }, []);
+
+  // Clear authentication data
+  const clearAuth = () => {
+    localStorage.removeItem('token');
+    setUser(null);
+    setToken(null);
+  };
 
   // Login function
   const login = async (username, password) => {
@@ -78,11 +79,10 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Login failed");
       }
 
-      const token = await response.text();
-      localStorage.setItem("token", token);
-      
-      // Set user state
+      const authToken = await response.text();
+      localStorage.setItem("token", authToken);
       setUser(username);
+      setToken(authToken);
       
       return { success: true };
     } catch (error) {
@@ -120,12 +120,12 @@ export const AuthProvider = ({ children }) => {
 
   // Logout function
   const logout = () => {
-    localStorage.removeItem('token');
-    setUser(null);
+    clearAuth();
   };
 
   const value = {
     user,
+    token, // Make token available to consumers
     login,
     logout,
     register,
@@ -134,9 +134,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
-
-export default AuthContext;
