@@ -273,8 +273,11 @@ const Memories = () => {
   const [error, setError] = useState(null);
   const [selectedMemory, setSelectedMemory] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const { user, logout, getToken } = useAuth();
+  const { user, logout, token } = useAuth();
   const navigate = useNavigate();
+
+  // Base API URL - adjust this to match your actual backend URL
+  const API_BASE_URL = "http://localhost:8080"; // Update this to your backend URL
 
   // Fetch memories from the backend
   const fetchMemories = async () => {
@@ -282,24 +285,54 @@ const Memories = () => {
 
     try {
       setLoading(true);
-      const token = getToken();
 
-      const response = await fetch(`/api/memories?username=${user}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+      if (!token) {
+        throw new Error("Authentication token not available");
       }
 
-      const data = await response.json();
+      // Use the correct API URL with full path
+      const response = await fetch(
+        `${API_BASE_URL}/api/memories?username=${user}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.status === 401) {
+        setError("Session expired. Please login again.");
+        logout();
+        navigate("/");
+        return;
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error: ${response.status} - ${errorText}`);
+      }
+
+      // Parse the response text first to check if it's valid JSON
+      const responseText = await response.text();
+      let data;
+
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error(
+          "Invalid JSON response:",
+          responseText.substring(0, 100) + "..."
+        );
+        throw new Error(
+          "Server returned invalid JSON. Please check server logs."
+        );
+      }
+
       setMemories(data);
       setError(null);
     } catch (err) {
       console.error("Error fetching memories:", err);
-      setError("Failed to load memories. Please try again.");
+      setError(`Failed to load memories: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -335,9 +368,20 @@ const Memories = () => {
   // Handle memory creation
   const handleCreateMemory = async (newMemory) => {
     try {
-      const token = getToken();
+      if (!token) {
+        throw new Error("Authentication token not available");
+      }
 
-      const response = await fetch("/api/memories", {
+      if (newMemory && newMemory.id) {
+        // This is likely a response from the API already (from the AddMemory component)
+        // Just add it to the list
+        setMemories([...memories, newMemory]);
+        setIsAddMemoryOpen(false);
+        setError(null);
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/api/memories`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -349,38 +393,68 @@ const Memories = () => {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+      if (response.status === 401) {
+        setError("Session expired. Please login again.");
+        logout();
+        navigate("/");
+        return;
       }
 
-      const createdMemory = await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error ${response.status}: ${errorText}`);
+      }
+
+      const responseText = await response.text();
+      let createdMemory;
+
+      try {
+        createdMemory = JSON.parse(responseText);
+      } catch (e) {
+        console.error(
+          "Invalid JSON response:",
+          responseText.substring(0, 100) + "..."
+        );
+        throw new Error(
+          "Server returned invalid JSON. Please check server logs."
+        );
+      }
+
       setMemories([...memories, createdMemory]);
       setIsAddMemoryOpen(false);
+      setError(null);
     } catch (err) {
       console.error("Error creating memory:", err);
-      setError("Failed to create memory. Please try again.");
+      setError(`Failed to create memory: ${err.message}`);
     }
   };
 
   // Handle memory update
   const handleUpdateMemory = async (updatedMemory) => {
     try {
-      const token = getToken();
+      if (!token) {
+        throw new Error("Authentication token not available");
+      }
 
-      const response = await fetch(`/api/memories/${updatedMemory.id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(updatedMemory),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/memories/${updatedMemory.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(updatedMemory),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error(`Error: ${response.status}`);
+        const errorText = await response.text();
+        throw new Error(`Error ${response.status}: ${errorText}`);
       }
 
       const updated = await response.json();
+
       setMemories(
         memories.map((memory) => (memory.id === updated.id ? updated : memory))
       );
@@ -389,17 +463,18 @@ const Memories = () => {
       setIsEditMode(false);
     } catch (err) {
       console.error("Error updating memory:", err);
-      setError("Failed to update memory. Please try again.");
+      setError(`Failed to update memory: ${err.message}`);
     }
   };
-
   // Handle memory deletion
   const handleDeleteMemory = async (id) => {
     if (window.confirm("Are you sure you want to delete this memory?")) {
       try {
-        const token = getToken();
+        if (!token) {
+          throw new Error("Authentication token not available");
+        }
 
-        const response = await fetch(`/api/memories/${id}`, {
+        const response = await fetch(`${API_BASE_URL}/api/memories/${id}`, {
           method: "DELETE",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -407,13 +482,14 @@ const Memories = () => {
         });
 
         if (!response.ok) {
-          throw new Error(`Error: ${response.status}`);
+          const errorText = await response.text();
+          throw new Error(`Error ${response.status}: ${errorText}`);
         }
 
         setMemories(memories.filter((memory) => memory.id !== id));
       } catch (err) {
         console.error("Error deleting memory:", err);
-        setError("Failed to delete memory. Please try again.");
+        setError(`Failed to delete memory: ${err.message}`);
       }
     }
   };
@@ -475,34 +551,23 @@ const Memories = () => {
     return acc;
   }, {});
 
+  // The rest of your component (UI rendering) remains the same
   return (
-    <div className="flex h-screen bg-gradient-to-br from-blue-100 to-cyan-50 overflow-hidden">
-      {/* Background decorative elements */}
-      <div className="absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-blue-400/10 blur-3xl"></div>
-        <div className="absolute top-1/3 right-0 w-96 h-96 rounded-full bg-cyan-500/10 blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full bg-amber-200/10 blur-3xl"></div>
-      </div>
-
-      {/* Mobile sidebar toggle */}
-      <button
-        className="fixed top-4 left-4 z-50 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md md:hidden text-blue-700"
-        onClick={toggleSidebar}
-      >
-        {sidebarOpen ? <IconX /> : <IconMenu />}
-      </button>
-
-      
-
-      {/* Main content */}
-      <div className="flex-1 overflow-auto relative z-10">
-        
-
+    <div className="flex flex-col h-full bg-gradient-to-br from-blue-100 to-cyan-50">
+      {/* Main content - removed overflow-auto from here */}
+      <div className="flex-1 flex flex-col relative z-10">
         {/* Memories content */}
         <main className="p-6">
           {error && (
             <div className="mb-4 p-3 bg-red-100 border border-red-200 text-red-700 rounded-lg">
               {error}
+              {token ? (
+                <div className="mt-2 text-xs">
+                  Debug: Token exists in context
+                </div>
+              ) : (
+                <div className="mt-2 text-xs">Debug: No token in context</div>
+              )}
             </div>
           )}
 
@@ -720,7 +785,6 @@ const Memories = () => {
           </div>
         </main>
       </div>
-
       {/* Mobile Add Memory Button */}
       <button
         onClick={toggleAddMemory}
@@ -728,19 +792,19 @@ const Memories = () => {
       >
         <IconPlus />
       </button>
-
       {/* Add/Edit Memory Modal */}
       {isAddMemoryOpen && (
         <AddMemory
           isOpen={isAddMemoryOpen}
           onClose={toggleAddMemory}
           onSave={isEditMode ? handleUpdateMemory : handleCreateMemory}
-          memory={selectedMemory}
-          isEdit={isEditMode}
+          memoryToEdit={selectedMemory}
+          username={user}
         />
       )}
     </div>
   );
+  
 };
 
 export default Memories;

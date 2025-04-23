@@ -165,7 +165,7 @@ const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState(null);
-  const { user, logout } = useAuth(); // Get user and logout from AuthContext
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState("dashboard");
 
@@ -179,6 +179,9 @@ const Dashboard = () => {
   // Toggle the Add Memory modal
   const toggleAddMemory = () => {
     setIsAddMemoryOpen(!isAddMemoryOpen);
+    if (isAddMemoryOpen) {
+      setSelectedMemory(null);
+    }
   };
 
   // Sample travel memories data
@@ -225,6 +228,12 @@ const Dashboard = () => {
     setSelectedMemory(null);
   };
 
+  // Handle navigation change
+  const handleNavChange = (navItem) => {
+    setActiveNav(navItem);
+    setSelectedMemory(null);
+  };
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-blue-100 to-cyan-50 overflow-hidden">
       {/* Background decorative elements */}
@@ -233,6 +242,7 @@ const Dashboard = () => {
         <div className="absolute top-1/3 right-0 w-96 h-96 rounded-full bg-cyan-500/10 blur-3xl"></div>
         <div className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full bg-amber-200/10 blur-3xl"></div>
       </div>
+      
       {/* Mobile sidebar toggle */}
       <button
         className="fixed top-4 left-4 z-50 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md md:hidden text-blue-700"
@@ -240,6 +250,7 @@ const Dashboard = () => {
       >
         {sidebarOpen ? <IconX /> : <IconMenu />}
       </button>
+      
       {/* Sidebar */}
       <div
         className={`fixed md:static inset-y-0 left-0 transform ${
@@ -282,64 +293,64 @@ const Dashboard = () => {
           <nav className="flex-1 p-4">
             <ul className="space-y-2">
               <li>
-                <a
-                  href="#"
-                  className={`flex items-center p-2 rounded-lg ${
+                <button
+                  className={`flex items-center w-full p-2 rounded-lg ${
                     activeNav === "dashboard"
                       ? "bg-blue-600 text-white"
                       : "text-blue-800 hover:bg-blue-100 hover:text-blue-700"
                   } transition-all`}
-                  onClick={() => {
-                    setActiveNav("dashboard");
-                    setSelectedMemory(null);
-                  }}
+                  onClick={() => handleNavChange("dashboard")}
                 >
                   <span className="mr-3">
                     <IconHome />
                   </span>
                   Dashboard
-                </a>
+                </button>
               </li>
               <li>
-                <a
-                  href="#"
-                  className="flex items-center p-2 rounded-lg text-blue-800 hover:bg-blue-100 hover:text-blue-700 transition-all"
+                <button
+                  className={`flex items-center w-full p-2 rounded-lg ${
+                    activeNav === "trips"
+                      ? "bg-blue-600 text-white"
+                      : "text-blue-800 hover:bg-blue-100 hover:text-blue-700"
+                  } transition-all`}
+                  onClick={() => handleNavChange("trips")}
                 >
                   <span className="mr-3">
                     <IconMap />
                   </span>
                   My Trips
-                </a>
+                </button>
               </li>
               <li>
-                <a
-                  href="#"
-                  className={`flex items-center p-2 rounded-lg ${
+                <button
+                  className={`flex items-center w-full p-2 rounded-lg ${
                     activeNav === "memories"
                       ? "bg-blue-600 text-white"
                       : "text-blue-800 hover:bg-blue-100 hover:text-blue-700"
                   } transition-all`}
-                  onClick={() => {
-                    setActiveNav("memories");
-                    handleMemoryClick(memories[0]); // Pass the first memory or another value to trigger memories view
-                  }}
+                  onClick={() => handleNavChange("memories")}
                 >
                   <span className="mr-3">
                     <IconCamera />
                   </span>
                   Memories
-                </a>
+                </button>
               </li>
               <li>
-                <a
-                  href="#"
-                  className="flex items-center p-2 rounded-lg text-blue-800 hover:bg-blue-100 hover:text-blue-700 transition-all"
+                <button
+                  className={`flex items-center w-full p-2 rounded-lg ${
+                    activeNav === "settings"
+                      ? "bg-blue-600 text-white"
+                      : "text-blue-800 hover:bg-blue-100 hover:text-blue-700"
+                  } transition-all`}
+                  onClick={() => handleNavChange("settings")}
                 >
                   <span className="mr-3">
                     <IconSettings />
                   </span>
                   Settings
-                </a>
+                </button>
               </li>
             </ul>
           </nav>
@@ -357,8 +368,9 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+      
       {/* Main content */}
-      <div className="flex-1 overflow-auto relative z-10">
+      <div className="flex-1 flex flex-col overflow-hidden relative z-10">
         {/* Header */}
         <header className="bg-white/80 backdrop-blur-md shadow-sm p-4 border-b border-amber-100/20">
           <div className="flex justify-between items-center">
@@ -373,25 +385,41 @@ const Dashboard = () => {
                 ? "Settings"
                 : `Welcome, ${user || "Traveler"}`}
             </h1>
-            <button
-              onClick={toggleAddMemory}
-              className="hidden md:flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full hover:shadow-lg hover:shadow-blue-500/30 transition-all"
-            >
-              <span className="mr-2">
-                <IconPlus />
-              </span>
-              Add Memory
-            </button>
+            {(activeNav === "dashboard" || activeNav === "memories") && (
+              <button
+                onClick={toggleAddMemory}
+                className="hidden md:flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full hover:shadow-lg hover:shadow-blue-500/30 transition-all"
+              >
+                <span className="mr-2">
+                  <IconPlus />
+                </span>
+                Add Memory
+              </button>
+            )}
           </div>
         </header>
 
-        {/* Dashboard content */}
-        <main className="p-6">
+        {/* Content Area */}
+        <div className="flex-1 overflow-auto">
           {selectedMemory ? (
-            <Memories memory={selectedMemory} onClose={handleCloseMemory} />
+            <div className="p-6">
+              <Memories 
+                memory={selectedMemory} 
+                onClose={handleCloseMemory} 
+                onAddMemory={toggleAddMemory}
+              />
+            </div>
+          ) : activeNav === "memories" ? (
+            <div className="p-6">
+              <Memories 
+                memories={memories} 
+                onMemoryClick={handleMemoryClick}
+                onAddMemory={toggleAddMemory}
+              />
+            </div>
           ) : (
-            // Show regular dashboard content when no memory is selected
-            <>
+            // Dashboard content
+            <div className="p-6 overflow-auto">
               {/* Stats cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-sm hover:shadow-md transition-all border border-amber-100/20">
@@ -426,19 +454,20 @@ const Dashboard = () => {
                   <h2 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-600">
                     Recent Memories
                   </h2>
-                  <a
-                    href="#"
+                  <button
+                    onClick={() => handleNavChange("memories")}
                     className="text-blue-600 hover:text-blue-800 transition-all"
                   >
                     View all
-                  </a>
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {memories.map((memory) => (
                     <div
                       key={memory.id}
-                      className="bg-white/80 backdrop-blur-sm rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all border border-amber-100/20 group"
+                      className="bg-white/80 backdrop-blur-sm rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all border border-amber-100/20 group cursor-pointer"
+                      onClick={() => handleMemoryClick(memory)}
                     >
                       <div className="relative overflow-hidden">
                         <img
@@ -489,22 +518,26 @@ const Dashboard = () => {
                 <div className="absolute -top-1/2 -right-1/4 w-64 h-64 rounded-full bg-amber-200/20 blur-2xl"></div>
                 <div className="absolute -bottom-1/2 -left-1/4 w-80 h-80 rounded-full bg-blue-300/20 blur-3xl"></div>
               </div>
-            </>
+            </div>
           )}
-        </main>
+        </div>
       </div>
+      
       {/* Mobile action button */}
-      <button
-        onClick={toggleAddMemory}
-        className="fixed bottom-6 right-6 md:hidden w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:shadow-blue-500/30 flex items-center justify-center transition-all"
-      >
-        <IconPlus />
-      </button>
+      {(activeNav === "dashboard" || activeNav === "memories") && (
+        <button
+          onClick={toggleAddMemory}
+          className="fixed bottom-6 right-6 z-20 md:hidden w-14 h-14 rounded-full bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg hover:shadow-blue-500/30 flex items-center justify-center transition-all"
+        >
+          <IconPlus />
+        </button>
+      )}
+      
       {/* Add Memory Modal */}
       <AddMemory
         isOpen={isAddMemoryOpen}
-        onClose={() => setIsAddMemoryOpen(false)}
-        username={user} // Just pass user directly if it's the username string
+        onClose={toggleAddMemory}
+        username={user}
       />
     </div>
   );
