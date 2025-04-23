@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
-import AddMemory from "../components/AddMemory"; // Import AddMemory component
+import AddMemory from "../components/AddMemory";
+import Memories from "../components/Memories";
 
 // Icon components
 const IconHome = () => (
@@ -163,8 +164,10 @@ const IconPlus = () => (
 const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
+  const [selectedMemory, setSelectedMemory] = useState(null);
   const { user, logout } = useAuth(); // Get user and logout from AuthContext
   const navigate = useNavigate();
+  const [activeNav, setActiveNav] = useState("dashboard");
 
   // Redirect if no user is logged in
   useEffect(() => {
@@ -210,6 +213,16 @@ const Dashboard = () => {
   const handleLogout = () => {
     logout();
     navigate("/");
+  };
+
+  // Handle memory selection
+  const handleMemoryClick = (memory) => {
+    setSelectedMemory(memory);
+  };
+
+  // Close memory detail view
+  const handleCloseMemory = () => {
+    setSelectedMemory(null);
   };
 
   return (
@@ -271,7 +284,15 @@ const Dashboard = () => {
               <li>
                 <a
                   href="#"
-                  className="flex items-center p-2 rounded-lg bg-blue-600 text-white"
+                  className={`flex items-center p-2 rounded-lg ${
+                    activeNav === "dashboard"
+                      ? "bg-blue-600 text-white"
+                      : "text-blue-800 hover:bg-blue-100 hover:text-blue-700"
+                  } transition-all`}
+                  onClick={() => {
+                    setActiveNav("dashboard");
+                    setSelectedMemory(null);
+                  }}
                 >
                   <span className="mr-3">
                     <IconHome />
@@ -293,7 +314,15 @@ const Dashboard = () => {
               <li>
                 <a
                   href="#"
-                  className="flex items-center p-2 rounded-lg text-blue-800 hover:bg-blue-100 hover:text-blue-700 transition-all"
+                  className={`flex items-center p-2 rounded-lg ${
+                    activeNav === "memories"
+                      ? "bg-blue-600 text-white"
+                      : "text-blue-800 hover:bg-blue-100 hover:text-blue-700"
+                  } transition-all`}
+                  onClick={() => {
+                    setActiveNav("memories");
+                    handleMemoryClick(memories[0]); // Pass the first memory or another value to trigger memories view
+                  }}
                 >
                   <span className="mr-3">
                     <IconCamera />
@@ -334,7 +363,15 @@ const Dashboard = () => {
         <header className="bg-white/80 backdrop-blur-md shadow-sm p-4 border-b border-amber-100/20">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-800">
-              Welcome, {user || "Traveler"}
+              {activeNav === "dashboard"
+                ? `Welcome, ${user || "Traveler"}`
+                : activeNav === "memories"
+                ? "My Memories"
+                : activeNav === "trips"
+                ? "My Trips"
+                : activeNav === "settings"
+                ? "Settings"
+                : `Welcome, ${user || "Traveler"}`}
             </h1>
             <button
               onClick={toggleAddMemory}
@@ -350,101 +387,110 @@ const Dashboard = () => {
 
         {/* Dashboard content */}
         <main className="p-6">
-          {/* Stats cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-sm hover:shadow-md transition-all border border-amber-100/20">
-              <h3 className="text-lg font-medium text-blue-600/80">
-                Total Trips
-              </h3>
-              <p className="text-3xl font-bold mt-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-600">
-                12
-              </p>
-            </div>
-            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-sm hover:shadow-md transition-all border border-amber-100/20">
-              <h3 className="text-lg font-medium text-blue-600/80">
-                Countries Visited
-              </h3>
-              <p className="text-3xl font-bold mt-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-600">
-                8
-              </p>
-            </div>
-            <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-sm hover:shadow-md transition-all border border-amber-100/20">
-              <h3 className="text-lg font-medium text-blue-600/80">
-                Total Memories
-              </h3>
-              <p className="text-3xl font-bold mt-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-600">
-                147
-              </p>
-            </div>
-          </div>
+          {selectedMemory ? (
+            <Memories memory={selectedMemory} onClose={handleCloseMemory} />
+          ) : (
+            // Show regular dashboard content when no memory is selected
+            <>
+              {/* Stats cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-sm hover:shadow-md transition-all border border-amber-100/20">
+                  <h3 className="text-lg font-medium text-blue-600/80">
+                    Total Trips
+                  </h3>
+                  <p className="text-3xl font-bold mt-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-600">
+                    12
+                  </p>
+                </div>
+                <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-sm hover:shadow-md transition-all border border-amber-100/20">
+                  <h3 className="text-lg font-medium text-blue-600/80">
+                    Countries Visited
+                  </h3>
+                  <p className="text-3xl font-bold mt-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-600">
+                    8
+                  </p>
+                </div>
+                <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-sm hover:shadow-md transition-all border border-amber-100/20">
+                  <h3 className="text-lg font-medium text-blue-600/80">
+                    Total Memories
+                  </h3>
+                  <p className="text-3xl font-bold mt-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-600">
+                    147
+                  </p>
+                </div>
+              </div>
 
-          {/* Recent memories */}
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-600">
-                Recent Memories
-              </h2>
-              <a
-                href="#"
-                className="text-blue-600 hover:text-blue-800 transition-all"
-              >
-                View all
-              </a>
-            </div>
+              {/* Recent memories */}
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-600">
+                    Recent Memories
+                  </h2>
+                  <a
+                    href="#"
+                    className="text-blue-600 hover:text-blue-800 transition-all"
+                  >
+                    View all
+                  </a>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {memories.map((memory) => (
-                <div
-                  key={memory.id}
-                  className="bg-white/80 backdrop-blur-sm rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all border border-amber-100/20 group"
-                >
-                  <div className="relative overflow-hidden">
-                    <img
-                      src={memory.image}
-                      alt={memory.description}
-                      className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                      <button className="text-white bg-blue-600/80 hover:bg-blue-700 px-3 py-1 rounded-full text-sm">
-                        View Details
-                      </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {memories.map((memory) => (
+                    <div
+                      key={memory.id}
+                      className="bg-white/80 backdrop-blur-sm rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all border border-amber-100/20 group"
+                    >
+                      <div className="relative overflow-hidden">
+                        <img
+                          src={memory.image}
+                          alt={memory.description}
+                          className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-110"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                          <button className="text-white bg-blue-600/80 hover:bg-blue-700 px-3 py-1 rounded-full text-sm">
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <div className="flex items-center text-blue-600 mb-2">
+                          <span className="mr-1">
+                            <IconMap />
+                          </span>
+                          <span className="text-sm">{memory.location}</span>
+                        </div>
+                        <h3 className="font-medium mb-2 text-blue-800">
+                          {memory.description}
+                        </h3>
+                        <p className="text-sm text-blue-600/70">
+                          {memory.date}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center text-blue-600 mb-2">
-                      <span className="mr-1">
-                        <IconMap />
-                      </span>
-                      <span className="text-sm">{memory.location}</span>
-                    </div>
-                    <h3 className="font-medium mb-2 text-blue-800">
-                      {memory.description}
-                    </h3>
-                    <p className="text-sm text-blue-600/70">{memory.date}</p>
+                  ))}
+                </div>
+              </div>
+
+              {/* Upcoming trip reminder */}
+              <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-md p-6 text-white border border-amber-100/20 relative overflow-hidden">
+                <div className="absolute inset-0 bg-amber-400/10 backdrop-blur-sm"></div>
+                <div className="relative z-10">
+                  <h2 className="text-xl font-semibold mb-2">Upcoming Trip</h2>
+                  <p className="mb-4">Barcelona, Spain - May 15, 2025</p>
+                  <div className="flex space-x-4">
+                    <button className="px-4 py-2 bg-white text-blue-600 rounded-full hover:shadow-lg transition-all">
+                      View Details
+                    </button>
+                    <button className="px-4 py-2 border border-white text-white rounded-full hover:bg-white/20 transition-all">
+                      Edit Trip
+                    </button>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Upcoming trip reminder */}
-          <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-md p-6 text-white border border-amber-100/20 relative overflow-hidden">
-            <div className="absolute inset-0 bg-amber-400/10 backdrop-blur-sm"></div>
-            <div className="relative z-10">
-              <h2 className="text-xl font-semibold mb-2">Upcoming Trip</h2>
-              <p className="mb-4">Barcelona, Spain - May 15, 2025</p>
-              <div className="flex space-x-4">
-                <button className="px-4 py-2 bg-white text-blue-600 rounded-full hover:shadow-lg transition-all">
-                  View Details
-                </button>
-                <button className="px-4 py-2 border border-white text-white rounded-full hover:bg-white/20 transition-all">
-                  Edit Trip
-                </button>
+                <div className="absolute -top-1/2 -right-1/4 w-64 h-64 rounded-full bg-amber-200/20 blur-2xl"></div>
+                <div className="absolute -bottom-1/2 -left-1/4 w-80 h-80 rounded-full bg-blue-300/20 blur-3xl"></div>
               </div>
-            </div>
-            <div className="absolute -top-1/2 -right-1/4 w-64 h-64 rounded-full bg-amber-200/20 blur-2xl"></div>
-            <div className="absolute -bottom-1/2 -left-1/4 w-80 h-80 rounded-full bg-blue-300/20 blur-3xl"></div>
-          </div>
+            </>
+          )}
         </main>
       </div>
       {/* Mobile action button */}
