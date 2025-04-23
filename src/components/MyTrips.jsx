@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import AddNewTrip from "./AddNewTrip";
 
 // Icon components
 const IconMap = () => (
@@ -404,241 +405,268 @@ const EmptyState = ({ onAddTrip }) => (
 );
 
 const MyTrips = ({ trips: propTrips, onAddTrip }) => {
-  const [selectedTrip, setSelectedTrip] = useState(null);
-  const [filterType, setFilterType] = useState("all");
-  
-  // Sample trip data if not provided from props
-  const defaultTrips = [
-    {
-      id: 1,
-      destination: "Barcelona, Spain",
-      startDate: "May 15, 2025",
-      endDate: "May 22, 2025",
-      duration: 7,
-      budget: 2500,
-      isUpcoming: true,
-      isPast: false,
-      image: "/api/placeholder/300/200",
-      description: "Exploring the vibrant culture, architecture, and beaches of Barcelona. A week of tapas, Gaudí, and Mediterranean vibes.",
-      accommodations: [
-        {
-          name: "Hotel Arts Barcelona",
-          address: "Marina 19-21, 08005 Barcelona, Spain",
-          checkIn: "May 15, 2025",
-          checkOut: "May 22, 2025"
-        }
-      ],
-      itinerary: [
-        {
-          date: "May 15, 2025",
-          activities: [
-            {
-              time: "10:00 AM",
-              name: "Arrival & Check-in",
-              description: "Arrive at Barcelona El Prat Airport and check in to Hotel Arts"
-            },
-            {
-              time: "2:00 PM",
-              name: "La Rambla Stroll",
-              description: "Take a leisurely walk down Barcelona's famous boulevard"
-            },
-            {
-              time: "7:00 PM",
-              name: "Tapas Dinner",
-              description: "Traditional Spanish tapas at El Xampanyet"
-            }
-          ]
-        },
-        {
-          date: "May 16, 2025",
-          activities: [
-            {
-              time: "9:30 AM",
-              name: "Sagrada Familia",
-              description: "Guided tour of Gaudí's masterpiece"
-            },
-            {
-              time: "2:00 PM",
-              name: "Park Güell",
-              description: "Explore the famous park with mosaic works"
-            },
-            {
-              time: "8:00 PM",
-              name: "Paella Dinner",
-              description: "Authentic paella at Barraca beachfront restaurant"
-            }
-          ]
-        }
-      ],
-      packingList: {
-        essentials: [
-          "Passport",
-          "Flight tickets",
-          "Hotel reservation",
-          "Travel insurance",
-          "Credit cards",
-          "Euros",
-          "Power adapter",
-          "Medications"
+    const [selectedTrip, setSelectedTrip] = useState(null);
+    const [filterType, setFilterType] = useState("all");
+    const [showAddNewTrip, setShowAddNewTrip] = useState(false);
+    
+    // Sample trip data if not provided from props
+    const defaultTrips = [
+      {
+        id: 1,
+        destination: "Barcelona, Spain",
+        startDate: "May 15, 2025",
+        endDate: "May 22, 2025",
+        duration: 7,
+        budget: 2500,
+        isUpcoming: true,
+        isPast: false,
+        image: "/api/placeholder/300/200",
+        description: "Exploring the vibrant culture, architecture, and beaches of Barcelona. A week of tapas, Gaudí, and Mediterranean vibes.",
+        accommodations: [
+          {
+            name: "Hotel Arts Barcelona",
+            address: "Marina 19-21, 08005 Barcelona, Spain",
+            checkIn: "May 15, 2025",
+            checkOut: "May 22, 2025"
+          }
         ],
-        clothing: [
-          "T-shirts",
-          "Shorts",
-          "Light jacket",
-          "Swimwear",
-          "Walking shoes",
-          "Sandals",
-          "Hat",
-          "Sunglasses"
-        ]
-      }
-    },
-    {
-      id: 2,
-      destination: "Tokyo, Japan",
-      startDate: "September 10, 2025",
-      endDate: "September 20, 2025",
-      duration: 10,
-      budget: 4000,
-      isUpcoming: false,
-      isPast: false,
-      image: "/api/placeholder/300/200",
-      description: "Immersing in the unique blend of tradition and futuristic technology. From ancient temples to neon-lit streets.",
-      accommodations: [
-        {
-          name: "Shibuya Excel Hotel Tokyu",
-          address: "1-12-2 Dogenzaka, Shibuya-ku, Tokyo",
-          checkIn: "September 10, 2025",
-          checkOut: "September 20, 2025"
+        itinerary: [
+          {
+            date: "May 15, 2025",
+            activities: [
+              {
+                time: "10:00 AM",
+                name: "Arrival & Check-in",
+                description: "Arrive at Barcelona El Prat Airport and check in to Hotel Arts"
+              },
+              {
+                time: "2:00 PM",
+                name: "La Rambla Stroll",
+                description: "Take a leisurely walk down Barcelona's famous boulevard"
+              },
+              {
+                time: "7:00 PM",
+                name: "Tapas Dinner",
+                description: "Traditional Spanish tapas at El Xampanyet"
+              }
+            ]
+          },
+          {
+            date: "May 16, 2025",
+            activities: [
+              {
+                time: "9:30 AM",
+                name: "Sagrada Familia",
+                description: "Guided tour of Gaudí's masterpiece"
+              },
+              {
+                time: "2:00 PM",
+                name: "Park Güell",
+                description: "Explore the famous park with mosaic works"
+              },
+              {
+                time: "8:00 PM",
+                name: "Paella Dinner",
+                description: "Authentic paella at Barraca beachfront restaurant"
+              }
+            ]
+          }
+        ],
+        packingList: {
+          essentials: [
+            "Passport",
+            "Flight tickets",
+            "Hotel reservation",
+            "Travel insurance",
+            "Credit cards",
+            "Euros",
+            "Power adapter",
+            "Medications"
+          ],
+          clothing: [
+            "T-shirts",
+            "Shorts",
+            "Light jacket",
+            "Swimwear",
+            "Walking shoes",
+            "Sandals",
+            "Hat",
+            "Sunglasses"
+          ]
         }
-      ],
-      itinerary: [],
-      packingList: {
-        essentials: [],
-        clothing: []
-      }
-    },
-    {
-      id: 3,
-      destination: "Rome, Italy",
-      startDate: "March 5, 2025",
-      endDate: "March 12, 2025",
-      duration: 7,
-      budget: 2200,
-      isUpcoming: false,
-      isPast: true,
-      image: "/api/placeholder/300/200",
-      description: "A week in the Eternal City exploring ancient ruins, Renaissance art, and enjoying the best Italian cuisine.",
-      accommodations: [
-        {
-          name: "Hotel Artemide",
-          address: "Via Nazionale, 22, 00184 Roma RM, Italy",
-          checkIn: "March 5, 2025",
-          checkOut: "March 12, 2025"
+      },
+      {
+        id: 2,
+        destination: "Tokyo, Japan",
+        startDate: "September 10, 2025",
+        endDate: "September 20, 2025",
+        duration: 10,
+        budget: 4000,
+        isUpcoming: false,
+        isPast: false,
+        image: "/api/placeholder/300/200",
+        description: "Immersing in the unique blend of tradition and futuristic technology. From ancient temples to neon-lit streets.",
+        accommodations: [
+          {
+            name: "Shibuya Excel Hotel Tokyu",
+            address: "1-12-2 Dogenzaka, Shibuya-ku, Tokyo",
+            checkIn: "September 10, 2025",
+            checkOut: "September 20, 2025"
+          }
+        ],
+        itinerary: [],
+        packingList: {
+          essentials: [],
+          clothing: []
         }
-      ],
-      itinerary: [],
-      packingList: {
-        essentials: [],
-        clothing: []
+      },
+      {
+        id: 3,
+        destination: "Rome, Italy",
+        startDate: "March 5, 2025",
+        endDate: "March 12, 2025",
+        duration: 7,
+        budget: 2200,
+        isUpcoming: false,
+        isPast: true,
+        image: "/api/placeholder/300/200",
+        description: "A week in the Eternal City exploring ancient ruins, Renaissance art, and enjoying the best Italian cuisine.",
+        accommodations: [
+          {
+            name: "Hotel Artemide",
+            address: "Via Nazionale, 22, 00184 Roma RM, Italy",
+            checkIn: "March 5, 2025",
+            checkOut: "March 12, 2025"
+          }
+        ],
+        itinerary: [],
+        packingList: {
+          essentials: [],
+          clothing: []
+        }
       }
+    ];
+    
+    const trips = propTrips || defaultTrips;
+    
+    // Handle trip selection
+    const handleTripClick = (trip) => {
+      setSelectedTrip(trip);
+    };
+    
+    // Close trip detail view
+    const handleCloseTrip = () => {
+      setSelectedTrip(null);
+    };
+    
+    // Handle click on "Add New Trip" button
+    const handleAddNewTripClick = () => {
+      setShowAddNewTrip(true);
+      // If onAddTrip prop is provided, call it as well
+      if (onAddTrip) onAddTrip();
+    };
+    
+    // Handle closing the AddNewTrip component
+    const handleCloseAddNewTrip = () => {
+      setShowAddNewTrip(false);
+    };
+    
+    // Handle trip creation (when a new trip is successfully created)
+    const handleTripCreated = (newTrip) => {
+      // Here you would typically update your trips list with the new trip
+      // This depends on how you manage state in your application
+      
+      // Close the AddNewTrip component
+      setShowAddNewTrip(false);
+    };
+    
+    // Filter trips based on selected filter
+    const filteredTrips = trips.filter(trip => {
+      if (filterType === "upcoming") return trip.isUpcoming;
+      if (filterType === "past") return trip.isPast;
+      if (filterType === "planning") return !trip.isUpcoming && !trip.isPast;
+      return true; // "all" filter
+    });
+  
+    // Render AddNewTrip if it's shown
+    if (showAddNewTrip) {
+      return <AddNewTrip onClose={handleCloseAddNewTrip} onSave={handleTripCreated} />;
     }
-  ];
   
-  const trips = propTrips || defaultTrips;
-  
-  // Handle trip selection
-  const handleTripClick = (trip) => {
-    setSelectedTrip(trip);
-  };
-  
-  // Close trip detail view
-  const handleCloseTrip = () => {
-    setSelectedTrip(null);
-  };
-  
-  // Filter trips based on selected filter
-  const filteredTrips = trips.filter(trip => {
-    if (filterType === "upcoming") return trip.isUpcoming;
-    if (filterType === "past") return trip.isPast;
-    if (filterType === "planning") return !trip.isUpcoming && !trip.isPast;
-    return true; // "all" filter
-  });
-
-  return (
-    <div>
-      {selectedTrip ? (
-        <TripDetail 
-          trip={selectedTrip} 
-          onClose={handleCloseTrip} 
-        />
-      ) : (
-        <>
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center space-x-4">
-              <button
-                className={`px-3 py-1 rounded-full ${
-                  filterType === "all"
-                    ? "bg-blue-600 text-white"
-                    : "text-blue-600 hover:bg-blue-50"
-                } transition-all`}
-                onClick={() => setFilterType("all")}
-              >
-                All Trips
-              </button>
-              <button
-                className={`px-3 py-1 rounded-full ${
-                  filterType === "upcoming"
-                    ? "bg-blue-600 text-white"
-                    : "text-blue-600 hover:bg-blue-50"
-                } transition-all`}
-                onClick={() => setFilterType("upcoming")}
-              >
-                Upcoming
-              </button>
-              <button
-                className={`px-3 py-1 rounded-full ${
-                  filterType === "planning"
-                    ? "bg-blue-600 text-white"
-                    : "text-blue-600 hover:bg-blue-50"
-                } transition-all`}
-                onClick={() => setFilterType("planning")}
-              >
-                Planning
-              </button>
-              <button
-                className={`px-3 py-1 rounded-full ${
-                  filterType === "past"
-                    ? "bg-blue-600 text-white"
-                    : "text-blue-600 hover:bg-blue-50"
-                } transition-all`}
-                onClick={() => setFilterType("past")}
-              >
-                Past
-              </button>
+    return (
+      <div>
+        {selectedTrip ? (
+          <TripDetail 
+            trip={selectedTrip} 
+            onClose={handleCloseTrip} 
+          />
+        ) : (
+          <>
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center space-x-4">
+                <button
+                  className={`px-3 py-1 rounded-full ${
+                    filterType === "all"
+                      ? "bg-blue-600 text-white"
+                      : "text-blue-600 hover:bg-blue-50"
+                  } transition-all`}
+                  onClick={() => setFilterType("all")}
+                >
+                  All Trips
+                </button>
+                <button
+                  className={`px-3 py-1 rounded-full ${
+                    filterType === "upcoming"
+                      ? "bg-blue-600 text-white"
+                      : "text-blue-600 hover:bg-blue-50"
+                  } transition-all`}
+                  onClick={() => setFilterType("upcoming")}
+                >
+                  Upcoming
+                </button>
+                <button
+                  className={`px-3 py-1 rounded-full ${
+                    filterType === "planning"
+                      ? "bg-blue-600 text-white"
+                      : "text-blue-600 hover:bg-blue-50"
+                  } transition-all`}
+                  onClick={() => setFilterType("planning")}
+                >
+                  Planning
+                </button>
+                <button
+                  className={`px-3 py-1 rounded-full ${
+                    filterType === "past"
+                      ? "bg-blue-600 text-white"
+                      : "text-blue-600 hover:bg-blue-50"
+                  } transition-all`}
+                  onClick={() => setFilterType("past")}
+                >
+                  Past
+                </button>
+              </div>
             </div>
-          </div>
-          
-          {trips.length === 0 ? (
-            <EmptyState onAddTrip={onAddTrip} />
-          ) : (
-            <>
-              <TripsList 
-                trips={filteredTrips} 
-                onTripClick={handleTripClick} 
-              />
-              {filteredTrips.length === 0 && (
-                <div className="text-center py-12">
-                  <p className="text-blue-600">No trips found with the selected filter.</p>
-                </div>
-              )}
-              <AddTripButton onClick={onAddTrip} />
-            </>
-          )}
-        </>
-      )}
-    </div>
-  );
-};
-
-export default MyTrips;
+            
+            {trips.length === 0 ? (
+              <EmptyState onAddTrip={handleAddNewTripClick} />
+            ) : (
+              <>
+                <TripsList 
+                  trips={filteredTrips} 
+                  onTripClick={handleTripClick} 
+                />
+                {filteredTrips.length === 0 && (
+                  <div className="text-center py-12">
+                    <p className="text-blue-600">No trips found with the selected filter.</p>
+                  </div>
+                )}
+                <AddTripButton onClick={handleAddNewTripClick} />
+              </>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+  
+  export default MyTrips;

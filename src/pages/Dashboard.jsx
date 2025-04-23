@@ -4,6 +4,7 @@ import { useAuth } from "../AuthContext";
 import AddMemory from "../components/AddMemory";
 import Memories from "../components/Memories";
 import MyTrips from "../components/MyTrips";
+import Settings from "../components/Settings";
 
 // Icon components
 const IconHome = () => (
