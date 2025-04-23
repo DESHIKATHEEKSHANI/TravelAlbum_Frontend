@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import AddMemory from "../components/AddMemory";
 import Memories from "../components/Memories";
+import MyTrips from "../components/MyTrips";
 
 // Icon components
 const IconHome = () => (
@@ -165,6 +166,7 @@ const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState(null);
+  const [selectedTrip, setSelectedTrip] = useState(null);
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState("dashboard");
@@ -209,6 +211,46 @@ const Dashboard = () => {
     },
   ];
 
+  const trips = [
+    {
+      id: 1,
+      destination: "Barcelona, Spain",
+      startDate: "May 15, 2025",
+      endDate: "May 22, 2025",
+      duration: 7,
+      budget: 2500,
+      isUpcoming: true,
+      isPast: false,
+      image: "/api/placeholder/300/200",
+      description: "City exploration and beach relaxation",
+      accommodations: [
+        {
+          name: "Hotel Arts Barcelona",
+          address: "Marina 19-21, 08005 Barcelona, Spain",
+          checkIn: "May 15, 2025",
+          checkOut: "May 22, 2025"
+        }
+      ],
+      itinerary: [
+        {
+          date: "May 15, 2025",
+          activities: [
+            {
+              time: "10:00 AM",
+              name: "Arrival & Check-in",
+              description: "Arrive at Barcelona El Prat Airport and check in to Hotel Arts"
+            }
+          ]
+        }
+      ],
+      packingList: {
+        essentials: ["Passport", "Flight tickets"],
+        clothing: ["T-shirts", "Shorts"]
+      }
+    },
+    // ... other trips
+  ];
+
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
@@ -228,10 +270,21 @@ const Dashboard = () => {
     setSelectedMemory(null);
   };
 
+  // Handle trip selection
+  const handleTripClick = (trip) => {
+    setSelectedTrip(trip);
+  };
+
+  // Close trip detail view
+  const handleCloseTrip = () => {
+    setSelectedTrip(null);
+  };
+
   // Handle navigation change
   const handleNavChange = (navItem) => {
     setActiveNav(navItem);
     setSelectedMemory(null);
+    setSelectedTrip(null);
   };
 
   return (
@@ -409,6 +462,13 @@ const Dashboard = () => {
                 onAddMemory={toggleAddMemory}
               />
             </div>
+          ) : selectedTrip ? (
+            <div className="p-6">
+              <MyTrips
+                trip={selectedTrip}
+                onClose={handleCloseTrip}
+              />
+            </div>
           ) : activeNav === "memories" ? (
             <div className="p-6">
               <Memories 
@@ -416,6 +476,19 @@ const Dashboard = () => {
                 onMemoryClick={handleMemoryClick}
                 onAddMemory={toggleAddMemory}
               />
+            </div>
+          ) : activeNav === "trips" ? (
+            <div className="p-6">
+              <MyTrips
+                trips={trips}
+              />
+            </div>
+          ) : activeNav === "settings" ? (
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-6">Settings</h2>
+              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-sm border border-amber-100/20">
+                <p>Settings content will go here</p>
+              </div>
             </div>
           ) : (
             // Dashboard content
