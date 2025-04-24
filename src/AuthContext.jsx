@@ -32,8 +32,11 @@ export const AuthProvider = ({ children }) => {
             
             if (response.ok) {
               const userData = await response.json();
-              setUser(userData.username);
-              setToken(storedToken); // Set the token in state
+              // Store both user data and token
+              setUser(userData);
+              setToken(storedToken);
+              return true;
+             // Set the token in state
             } else {
               // Token invalid or expired
               clearAuth();

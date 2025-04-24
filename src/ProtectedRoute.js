@@ -22,7 +22,7 @@ const ProtectedRoute = ({ children }) => {
 
   // Redirect to login if not authenticated
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // If authenticated, render the child component

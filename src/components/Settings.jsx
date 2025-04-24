@@ -186,12 +186,11 @@ const Settings = () => {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-amber-100/20 overflow-hidden mb-8">
+      <div className="flex flex-col h-full bg-gradient-to-br from-blue-100 to-cyan-50">
         <div className="md:flex">
           {/* Settings navigation sidebar */}
           <div className="md:w-64 bg-blue-50/50 border-r border-amber-100/20">
             <div className="p-4">
-              <h2 className="font-semibold text-blue-800 mb-4">Settings</h2>
               <nav>
                 <ul className="space-y-1">
                   <li>
