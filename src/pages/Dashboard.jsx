@@ -486,10 +486,7 @@ const Dashboard = () => {
             </div>
           ) : activeNav === "settings" ? (
             <div className="p-6">
-              <h2 className="text-xl font-semibold mb-6">Settings</h2>
-              <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-sm border border-amber-100/20">
-                <p>Settings content will go here</p>
-              </div>
+              <Settings />
             </div>
           ) : (
             // Dashboard content

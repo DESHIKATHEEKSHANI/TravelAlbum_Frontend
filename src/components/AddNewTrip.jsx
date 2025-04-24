@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useAuth } from "../AuthContext";
+import { useNavigate } from "react-router-dom";
 
 // Re-using icons from the original code
 const IconMap = () => (
@@ -232,23 +234,41 @@ const generatePackingList = (destination, duration, startDate) => {
   };
 };
 
-const AddNewTrip = ({ onSave, onCancel }) => {
+const AddNewTrip = ({ onCancel }) => {
+  const navigate = useNavigate();
+  const { user, token } = useAuth();
   const [activeStep, setActiveStep] = useState(1);
-  const [formData, setFormData] = useState({
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  const initialFormState = {
     destination: "",
     startDate: "",
     endDate: "",
     duration: 7,
     budget: 1000,
     description: "",
+    username: user,
     accommodations: [{ name: "", address: "", checkIn: "", checkOut: "" }],
-    image: "/api/placeholder/300/200", // Default placeholder
+    imageUrl: null,
     packingList: {
       essentials: [],
       clothing: []
-    }
-  });
+    },
+    status: "PLANNING"
+  };
+
+  const [formData, setFormData] = useState(initialFormState);
   
+  const resetForm = () => {
+    setFormData(initialFormState);
+    setSelectedImage(null);
+    setImagePreview(null);
+    setActiveStep(1);
+  };
   // Calculate duration when dates change
   useEffect(() => {
     if (formData.startDate && formData.endDate) {
@@ -309,8 +329,28 @@ const AddNewTrip = ({ onSave, onCancel }) => {
     }));
   };
   
+  // Handle image selection
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
   // Generate packing list based on trip details
   const handleGeneratePackingList = () => {
+    if (!formData.destination || !formData.startDate) {
+      setError("Destination and start date are required to generate a packing list");
+      return;
+    }
+    
     const packingList = generatePackingList(
       formData.destination,
       formData.duration,
@@ -323,24 +363,124 @@ const AddNewTrip = ({ onSave, onCancel }) => {
     }));
   };
   
-  // Handle save
-  const handleSave = () => {
-    const now = new Date();
-    const startDate = new Date(formData.startDate);
+  // Submit trip to backend
+  const handleSave = async () => {
+    setIsLoading(true);
+    setError(null);
     
-    // Calculate if trip is upcoming or past
-    const isUpcoming = startDate > now;
-    const isPast = new Date(formData.endDate) < now;
-    
-    const newTrip = {
-      ...formData,
-      id: Date.now(), // Generate a unique ID
-      isUpcoming,
-      isPast,
-      itinerary: [] // Initialize empty itinerary
-    };
-    
-    onSave(newTrip);
+    try {
+      let createdTrip;
+      
+      // Update status based on date
+      const now = new Date();
+      const startDate = new Date(formData.startDate);
+      const endDate = new Date(formData.endDate);
+      
+      let status = "PLANNING";
+      if (startDate <= now && endDate >= now) {
+        status = "ACTIVE";
+      } else if (endDate < now) {
+        status = "COMPLETED";
+      } else if (startDate > now) {
+        status = "UPCOMING";
+      }
+
+      const packingListItems = [
+        ...formData.packingList.essentials.map(item => ({
+          name: item.replace("✓ ", ""),
+          category: "ESSENTIALS",
+          packed: item.startsWith("✓ ")
+        })),
+        ...formData.packingList.clothing.map(item => ({
+          name: item.replace("✓ ", ""),
+          category: "CLOTHING",
+          packed: item.startsWith("✓ ")
+        }))
+      ];
+      
+      const tripData = {
+        ...formData,
+        status,
+        username: user,
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        packingList: {
+          essentials: formData.packingList.essentials,
+          clothing: formData.packingList.clothing
+        },
+        // Ensure accommodations are properly formatted
+        accommodations: formData.accommodations.map(acc => ({
+          ...acc,
+          checkIn: acc.checkIn || formData.startDate,
+          checkOut: acc.checkOut || formData.endDate
+        }))
+      };
+      
+      if (selectedImage) {
+        // If we have an image, use the with-image endpoint
+        const formPayload = new FormData();
+        formPayload.append("file", selectedImage);
+        
+        // Convert tripDTO to JSON and append
+        const tripDtoBlob = new Blob([JSON.stringify(tripData)], {
+          type: 'application/json'
+        });
+        formPayload.append("tripDTO", tripDtoBlob);
+        
+        const response = await fetch("http://localhost:8080/api/trips/with-image", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
+          body: formPayload
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to create trip: ${response.status}`);
+        }
+        
+        createdTrip = await response.json();
+        console.log("Trip created successfully:", createdTrip);
+      
+      // Show success message and reset form
+      setSaveSuccess(true);
+      resetForm();
+      setTimeout(() => {
+        navigate(`/trips/${createdTrip.id}`);
+      }, 1500);
+      } else {
+        // If no image, use the regular endpoint
+        const response = await fetch("http://localhost:8080/api/trips", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify(tripData)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`Failed to create trip: ${response.status}`);
+        }
+        
+        createdTrip = await response.json();
+      }
+      
+      console.log("Trip created successfully:", createdTrip);
+      
+      // Show success message
+      setSaveSuccess(true);
+      
+      // Navigate after a short delay to allow user to see success message
+      setTimeout(() => {
+        navigate(`/trips/${createdTrip.id}`);
+      }, 1500);
+    } catch (error) {
+      console.error("Error saving trip:", error);
+      setError(error.message || "Failed to save trip. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   // Navigation between steps
@@ -356,22 +496,35 @@ const AddNewTrip = ({ onSave, onCancel }) => {
     setActiveStep(activeStep - 1);
   };
   
-  // Custom checkbox component
-  const Checkbox = ({ label, checked, onChange }) => (
-    <label className="flex items-center py-1 cursor-pointer group">
-      <div className={`w-5 h-5 rounded border mr-3 flex items-center justify-center ${checked ? 'bg-blue-600 border-blue-600' : 'border-blue-300 group-hover:border-blue-500'}`}>
-        {checked && <IconCheck className="text-white w-4 h-4" />}
-      </div>
-      <span className="text-blue-700">{label}</span>
-    </label>
-  );
+  // Custom checkbox component with stop propagation to prevent event bubbling
+  const Checkbox = ({ label, checked, onChange }) => {
+    const handleClick = (e) => {
+      e.stopPropagation();
+      onChange();
+    };
+    
+    return (
+      <label className="flex items-center py-1 cursor-pointer group">
+        <div
+          className={`w-5 h-5 rounded border mr-3 flex items-center justify-center ${
+            checked ? 'bg-blue-600 border-blue-600' : 'border-blue-300 group-hover:border-blue-500'
+          }`}
+          onClick={handleClick}
+        >
+          {checked && <IconCheck />}
+        </div>
+        <span className="text-blue-700">{label}</span>
+      </label>
+    );
+  };
   
-  // Toggle item in packing list
+  // Toggle item in packing list - fixed to ensure state updates properly
   const togglePackingItem = (category, index) => {
     const updatedList = [...formData.packingList[category]];
-    updatedList[index] = updatedList[index].startsWith("✓ ") 
-      ? updatedList[index].substring(2) 
-      : "✓ " + updatedList[index];
+    const currentItem = updatedList[index];
+    updatedList[index] = currentItem.startsWith("✓ ") 
+      ? currentItem.substring(2) 
+      : "✓ " + currentItem;
     
     setFormData(prev => ({
       ...prev,
@@ -414,6 +567,18 @@ const AddNewTrip = ({ onSave, onCancel }) => {
           <h2 className="text-2xl font-bold text-center text-blue-800">Add New Trip</h2>
           <div className="w-16"></div> {/* Spacer for alignment */}
         </div>
+        
+        {error && (
+          <div className="bg-red-50 text-red-700 p-3 rounded-lg mb-4 border border-red-200">
+            {error}
+          </div>
+        )}
+        
+        {saveSuccess && (
+          <div className="bg-green-50 text-green-700 p-3 rounded-lg mb-4 border border-green-200">
+            Trip saved successfully! Redirecting to trip details...
+          </div>
+        )}
         
         <div className="flex items-center justify-between relative">
           <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-blue-200 -z-10"></div>
@@ -543,6 +708,49 @@ const AddNewTrip = ({ onSave, onCancel }) => {
               className="w-full p-3 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 h-24"
             />
           </div>
+          
+          <div>
+            <label className="block text-blue-700 font-medium mb-2">
+              Trip Image (Optional)
+            </label>
+            <div className="border-2 border-dashed border-blue-200 rounded-lg p-4 text-center">
+              {imagePreview ? (
+                <div className="mb-3">
+                  <img 
+                    src={imagePreview} 
+                    alt="Trip preview" 
+                    className="h-40 mx-auto object-cover rounded"
+                  />
+                  <button 
+                    onClick={() => {
+                      setSelectedImage(null);
+                      setImagePreview(null);
+                    }}
+                    className="mt-2 text-red-500 hover:text-red-700 text-sm"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="text-blue-400 mb-3">
+                  Upload an image for your trip
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="hidden"
+                id="trip-image"
+              />
+              <label
+                htmlFor="trip-image"
+                className="px-4 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 cursor-pointer inline-block"
+              >
+                {imagePreview ? "Change Image" : "Select Image"}
+              </label>
+            </div>
+          </div>
         </div>
       )}
       
@@ -655,100 +863,115 @@ const AddNewTrip = ({ onSave, onCancel }) => {
             <div>
               <h4 className="font-medium text-blue-700 mb-2">Essentials</h4>
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-2">
-                {formData.packingList.essentials.map((item, index) => (
-                  <div key={index} className="mb-1 last:mb-0">
-                    <Checkbox
-                      label={item.replace("✓ ", "")}
-                      checked={item.startsWith("✓ ")}
-                      onChange={() => togglePackingItem("essentials", index)}
-                    />
-                  </div>
-                ))}
+                {formData.packingList.essentials.length > 0 ? (
+                  formData.packingList.essentials.map((item, index) => (
+                    <div key={index} className="mb-1 last:mb-0">
+                      <Checkbox
+                        label={item.replace("✓ ", "")}
+                        checked={item.startsWith("✓ ")}
+                        onChange={() => togglePackingItem("essentials", index)}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-blue-400">No essential items added yet.</div>
+                )}
               </div>
             </div>
             
             <div>
               <h4 className="font-medium text-blue-700 mb-2">Clothing</h4>
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-2">
-                {formData.packingList.clothing.map((item, index) => (
-                  <div key={index} className="mb-1 last:mb-0">
-                    <Checkbox
-                      label={item.replace("✓ ", "")}
-                      checked={item.startsWith("✓ ")}
-                      onChange={() => togglePackingItem("clothing", index)}
-                    />
-                  </div>
-                ))}
+                {formData.packingList.clothing.length > 0 ? (
+                  formData.packingList.clothing.map((item, index) => (
+                    <div key={index} className="mb-1 last:mb-0">
+                      <Checkbox
+                        label={item.replace("✓ ", "")}
+                        checked={item.startsWith("✓ ")}onChange={() => togglePackingItem("clothing", index)}
+                        />
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-blue-400">No clothing items added yet.</div>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6">
+              <h4 className="font-medium text-blue-700 mb-2">Add Custom Item</h4>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="text"
+                  value={newItem}
+                  onChange={(e) => setNewItem(e.target.value)}
+                  placeholder="Enter custom item..."
+                  className="flex-1 px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <select
+                  value={newItemCategory}
+                  onChange={(e) => setNewItemCategory(e.target.value)}
+                  className="px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="essentials">Essentials</option>
+                  <option value="clothing">Clothing</option>
+                </select>
+                <button
+                  onClick={addCustomItem}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+                >
+                  Add
+                </button>
               </div>
             </div>
           </div>
-          
-          <div className="mt-6">
-            <h4 className="font-medium text-blue-700 mb-2">Add Custom Item</h4>
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                value={newItem}
-                onChange={(e) => setNewItem(e.target.value)}
-                placeholder="Enter custom item..."
-                className="flex-1 px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              <select
-                value={newItemCategory}
-                onChange={(e) => setNewItemCategory(e.target.value)}
-                className="px-3 py-2 border border-blue-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="essentials">Essentials</option>
-                <option value="clothing">Clothing</option>
-              </select>
-              <button
-                onClick={addCustomItem}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Navigation buttons */}
-      <div className="flex justify-between mt-8">
-        {activeStep > 1 ? (
-          <button
-            onClick={prevStep}
-            className="px-6 py-2 border border-blue-500 text-blue-500 rounded-lg hover:bg-blue-50 transition-all"
-          >
-            Back
-          </button>
-        ) : (
-          <button
-            onClick={onCancel}
-            className="px-6 py-2 border border-gray-300 text-gray-500 rounded-lg hover:bg-gray-50 transition-all"
-          >
-            Cancel
-          </button>
         )}
         
-        {activeStep < 3 ? (
-          <button
-            onClick={nextStep}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-            disabled={activeStep === 1 && (!formData.destination || !formData.startDate || !formData.endDate)}
-          >
-            Next
-          </button>
-        ) : (
-          <button
-            onClick={handleSave}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
-          >
-            Save Trip
-          </button>
+        {/* Navigation buttons */}
+        <div className="flex justify-between mt-8">
+          {activeStep > 1 ? (
+            <button
+              onClick={prevStep}
+              className="px-6 py-2 border border-blue-500 text-blue-500 rounded-lg hover:bg-blue-50 transition-all"
+            >
+              Back
+            </button>
+          ) : (
+            <button
+              onClick={onCancel}
+              className="px-6 py-2 border border-gray-300 text-gray-500 rounded-lg hover:bg-gray-50 transition-all"
+            >
+              Cancel
+            </button>
+          )}
+          
+          {activeStep < 3 ? (
+            <button
+              onClick={nextStep}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+              disabled={activeStep === 1 && (!formData.destination || !formData.startDate || !formData.endDate)}
+            >
+              Next
+            </button>
+          ) : (
+            <button
+              onClick={handleSave}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
+              disabled={isLoading}
+            >
+              {isLoading ? "Saving..." : "Save Trip"}
+            </button>
+          )}
+        </div>
+        
+        {/* Error display at bottom if needed */}
+        {error && activeStep === 3 && (
+          <div className="mt-4 bg-red-50 text-red-700 p-3 rounded-lg border border-red-200">
+            {error}
+          </div>
         )}
       </div>
-    </div>
-  );
-};
-
-export default AddNewTrip;
+    );
+  };
+  
+  export default AddNewTrip;
