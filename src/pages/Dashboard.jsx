@@ -168,9 +168,27 @@ const Dashboard = () => {
   const [isAddMemoryOpen, setIsAddMemoryOpen] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState(null);
   const [selectedTrip, setSelectedTrip] = useState(null);
-  const { user, logout } = useAuth();
+  const { user, logout, token } = useAuth();
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState("dashboard");
+
+  // State for backend data
+  const [memories, setMemories] = useState([]);
+  const [trips, setTrips] = useState([]);
+  const [upcomingTrip, setUpcomingTrip] = useState(null);
+  const [stats, setStats] = useState({
+    totalTrips: 0,
+    countriesVisited: 0,
+    totalMemories: 0,
+  });
+  const [loading, setLoading] = useState({
+    memories: true,
+    trips: true,
+  });
+  const [error, setError] = useState({
+    memories: null,
+    trips: null,
+  });
 
   // Redirect if no user is logged in
   useEffect(() => {
@@ -179,6 +197,158 @@ const Dashboard = () => {
     }
   }, [user, navigate]);
 
+  // Fetch memories from backend
+  useEffect(() => {
+    const fetchMemories = async () => {
+      if (!user || !token) return;
+
+      try {
+        setLoading((prev) => ({ ...prev, memories: true }));
+
+        // Use the full URL including http://localhost:8080
+        const response = await fetch(
+          `http://localhost:8080/api/memories?username=${user}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Error fetching memories: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setMemories(data);
+        setStats((prev) => ({ ...prev, totalMemories: data.length }));
+        setError((prev) => ({ ...prev, memories: null }));
+      } catch (err) {
+        console.error("Failed to fetch memories:", err);
+        setError((prev) => ({ ...prev, memories: err.message }));
+      } finally {
+        setLoading((prev) => ({ ...prev, memories: false }));
+      }
+    };
+
+    fetchMemories();
+  }, [user, token]);
+
+  // Fetch trips from backend
+  // Fetch trips from backend
+  useEffect(() => {
+    const fetchTrips = async () => {
+      if (!user || !token) return;
+
+      try {
+        setLoading((prev) => ({ ...prev, trips: true }));
+
+        // Use the full URL including http://localhost:8080
+        const response = await fetch(`http://localhost:8080/api/trips?username=${user}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+    
+        if (!response.ok) {
+          const errorData = await response.text();
+          throw new Error(`Error fetching trips: ${response.status} - ${errorData}`);
+        }
+    
+        const data = await response.json();
+
+        // Filter out malformed trip data
+        const validTrips = data.filter(trip => 
+          trip && 
+          trip.destination && 
+          trip.startDate && 
+          trip.endDate
+        );
+        
+        if (validTrips.length < data.length) {
+          console.warn(`Filtered out ${data.length - validTrips.length} invalid trip records`);
+        }
+        
+        setTrips(validTrips);
+
+        // Find upcoming trip - ensuring we have valid date fields
+        const upcoming = validTrips
+          .filter((trip) => {
+            try {
+              return (
+                trip.isUpcoming ||
+                (trip.startDate && new Date(trip.startDate) > new Date())
+              );
+            } catch (err) {
+              console.warn("Invalid date in trip record:", trip.id);
+              return false;
+            }
+          })
+          .sort((a, b) => {
+            try {
+              return new Date(a.startDate) - new Date(b.startDate);
+            } catch (err) {
+              return 0;
+            }
+          })[0];
+
+        setUpcomingTrip(upcoming);
+
+        // Calculate stats - with safeguards
+        if (validTrips.length > 0) {
+          const countries = [
+            ...new Set(
+              validTrips
+                .map((trip) => {
+                  try {
+                    const destParts = trip.destination?.split(",");
+                    return destParts && destParts.length > 0
+                      ? destParts[destParts.length - 1].trim()
+                      : null;
+                  } catch (err) {
+                    console.warn("Error processing destination:", trip.id);
+                    return null;
+                  }
+                })
+                .filter((country) => country !== null)
+            ),
+          ];
+
+          setStats((prev) => ({
+            ...prev,
+            totalTrips: validTrips.length,
+            countriesVisited: countries.length,
+          }));
+        } else {
+          setStats((prev) => ({
+            ...prev,
+            totalTrips: 0,
+            countriesVisited: 0,
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to fetch trips:", err);
+
+        setError((prev) => ({ ...prev, trips: err.message }));
+
+        // Reset trips data on error
+        setTrips([]);
+        setUpcomingTrip(null);
+        setStats((prev) => ({
+          ...prev,
+          totalTrips: 0,
+          countriesVisited: 0,
+        }));
+      } finally {
+        setLoading((prev) => ({ ...prev, trips: false }));
+      }
+    };
+
+    fetchTrips();
+  }, [user, token]);
+
+  // You could then add a retry button in your UI that calls retryFetchTrips()
+
   // Toggle the Add Memory modal
   const toggleAddMemory = () => {
     setIsAddMemoryOpen(!isAddMemoryOpen);
@@ -186,71 +356,6 @@ const Dashboard = () => {
       setSelectedMemory(null);
     }
   };
-
-  // Sample travel memories data
-  const memories = [
-    {
-      id: 1,
-      location: "Paris, France",
-      date: "April 10, 2025",
-      image: "/api/placeholder/300/200",
-      description: "Visiting the Eiffel Tower at sunset",
-    },
-    {
-      id: 2,
-      location: "Tokyo, Japan",
-      date: "March 15, 2025",
-      image: "/api/placeholder/300/200",
-      description: "Cherry blossoms in full bloom at Ueno Park",
-    },
-    {
-      id: 3,
-      location: "Santorini, Greece",
-      date: "February 22, 2025",
-      image: "/api/placeholder/300/200",
-      description: "White buildings against the blue Aegean Sea",
-    },
-  ];
-
-  const trips = [
-    {
-      id: 1,
-      destination: "Barcelona, Spain",
-      startDate: "May 15, 2025",
-      endDate: "May 22, 2025",
-      duration: 7,
-      budget: 2500,
-      isUpcoming: true,
-      isPast: false,
-      image: "/api/placeholder/300/200",
-      description: "City exploration and beach relaxation",
-      accommodations: [
-        {
-          name: "Hotel Arts Barcelona",
-          address: "Marina 19-21, 08005 Barcelona, Spain",
-          checkIn: "May 15, 2025",
-          checkOut: "May 22, 2025"
-        }
-      ],
-      itinerary: [
-        {
-          date: "May 15, 2025",
-          activities: [
-            {
-              time: "10:00 AM",
-              name: "Arrival & Check-in",
-              description: "Arrive at Barcelona El Prat Airport and check in to Hotel Arts"
-            }
-          ]
-        }
-      ],
-      packingList: {
-        essentials: ["Passport", "Flight tickets"],
-        clothing: ["T-shirts", "Shorts"]
-      }
-    },
-    // ... other trips
-  ];
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -288,6 +393,43 @@ const Dashboard = () => {
     setSelectedTrip(null);
   };
 
+  // Format date to readable format
+  const formatDate = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  // Handle memory refresh after adding a new one
+  const handleAddMemorySuccess = async () => {
+    toggleAddMemory();
+
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/memories?username=${user}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Error refreshing memories: ${response.status}`);
+      }
+
+      const data = await response.json();
+      setMemories(data);
+      setStats((prev) => ({ ...prev, totalMemories: data.length }));
+    } catch (err) {
+      console.error("Failed to refresh memories:", err);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gradient-to-br from-blue-100 to-cyan-50 overflow-hidden">
       {/* Background decorative elements */}
@@ -296,7 +438,7 @@ const Dashboard = () => {
         <div className="absolute top-1/3 right-0 w-96 h-96 rounded-full bg-cyan-500/10 blur-3xl"></div>
         <div className="absolute bottom-0 left-1/4 w-80 h-80 rounded-full bg-amber-200/10 blur-3xl"></div>
       </div>
-      
+
       {/* Mobile sidebar toggle */}
       <button
         className="fixed top-4 left-4 z-50 p-2 rounded-full bg-white/80 backdrop-blur-sm shadow-md md:hidden text-blue-700"
@@ -304,7 +446,7 @@ const Dashboard = () => {
       >
         {sidebarOpen ? <IconX /> : <IconMenu />}
       </button>
-      
+
       {/* Sidebar */}
       <div
         className={`fixed md:static inset-y-0 left-0 transform ${
@@ -422,7 +564,7 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden relative z-10">
         {/* Header */}
@@ -457,31 +599,33 @@ const Dashboard = () => {
         <div className="flex-1 overflow-auto">
           {selectedMemory ? (
             <div className="p-6">
-              <Memories 
-                memory={selectedMemory} 
-                onClose={handleCloseMemory} 
+              <Memories
+                memory={selectedMemory}
+                onClose={handleCloseMemory}
                 onAddMemory={toggleAddMemory}
               />
             </div>
           ) : selectedTrip ? (
             <div className="p-6">
-              <MyTrips
-                trip={selectedTrip}
-                onClose={handleCloseTrip}
-              />
+              <MyTrips trip={selectedTrip} onClose={handleCloseTrip} />
             </div>
           ) : activeNav === "memories" ? (
             <div className="p-6">
-              <Memories 
-                memories={memories} 
+              <Memories
+                memories={memories}
                 onMemoryClick={handleMemoryClick}
                 onAddMemory={toggleAddMemory}
+                loading={loading.memories}
+                error={error.memories}
               />
             </div>
           ) : activeNav === "trips" ? (
             <div className="p-6">
               <MyTrips
                 trips={trips}
+                onTripClick={handleTripClick}
+                loading={loading.trips}
+                error={error.trips}
               />
             </div>
           ) : activeNav === "settings" ? (
@@ -498,7 +642,7 @@ const Dashboard = () => {
                     Total Trips
                   </h3>
                   <p className="text-3xl font-bold mt-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-600">
-                    12
+                    {loading.trips ? "..." : stats.totalTrips}
                   </p>
                 </div>
                 <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-sm hover:shadow-md transition-all border border-amber-100/20">
@@ -506,7 +650,7 @@ const Dashboard = () => {
                     Countries Visited
                   </h3>
                   <p className="text-3xl font-bold mt-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-600">
-                    8
+                    {loading.trips ? "..." : stats.countriesVisited}
                   </p>
                 </div>
                 <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg shadow-sm hover:shadow-md transition-all border border-amber-100/20">
@@ -514,7 +658,7 @@ const Dashboard = () => {
                     Total Memories
                   </h3>
                   <p className="text-3xl font-bold mt-2 bg-clip-text text-transparent bg-gradient-to-r from-blue-800 to-blue-600">
-                    147
+                    {loading.memories ? "..." : stats.totalMemories}
                   </p>
                 </div>
               </div>
@@ -533,67 +677,122 @@ const Dashboard = () => {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {memories.map((memory) => (
-                    <div
-                      key={memory.id}
-                      className="bg-white/80 backdrop-blur-sm rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all border border-amber-100/20 group cursor-pointer"
-                      onClick={() => handleMemoryClick(memory)}
+                {loading.memories ? (
+                  <div className="flex justify-center items-center py-12">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                  </div>
+                ) : error.memories ? (
+                  <div className="bg-red-50 text-red-500 p-4 rounded-lg">
+                    Error loading memories: {error.memories}
+                  </div>
+                ) : memories.length === 0 ? (
+                  <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg text-center">
+                    <p className="text-blue-600">
+                      No memories yet. Create your first travel memory!
+                    </p>
+                    <button
+                      onClick={toggleAddMemory}
+                      className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700"
                     >
-                      <div className="relative overflow-hidden">
-                        <img
-                          src={memory.image}
-                          alt={memory.description}
-                          className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-110"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                          <button className="text-white bg-blue-600/80 hover:bg-blue-700 px-3 py-1 rounded-full text-sm">
-                            View Details
-                          </button>
+                      Add Memory
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {memories.slice(0, 3).map((memory) => (
+                      <div
+                        key={memory.id}
+                        className="bg-white/80 backdrop-blur-sm rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all border border-amber-100/20 group cursor-pointer"
+                        onClick={() => handleMemoryClick(memory)}
+                      >
+                        <div className="relative overflow-hidden">
+                          <img
+                            src={memory.imageUrl || "/api/placeholder/400/300"}
+                            alt={memory.description}
+                            className="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-110"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                            <button className="text-white bg-blue-600/80 hover:bg-blue-700 px-3 py-1 rounded-full text-sm">
+                              View Details
+                            </button>
+                          </div>
+                        </div>
+                        <div className="p-4">
+                          <div className="flex items-center text-blue-600 mb-2">
+                            <span className="mr-1">
+                              <IconMap />
+                            </span>
+                            <span className="text-sm">{memory.location}</span>
+                          </div>
+                          <h3 className="font-medium mb-2 text-blue-800">
+                            {memory.description}
+                          </h3>
+                          <p className="text-sm text-blue-600/70">
+                            {formatDate(memory.date)}
+                          </p>
                         </div>
                       </div>
-                      <div className="p-4">
-                        <div className="flex items-center text-blue-600 mb-2">
-                          <span className="mr-1">
-                            <IconMap />
-                          </span>
-                          <span className="text-sm">{memory.location}</span>
-                        </div>
-                        <h3 className="font-medium mb-2 text-blue-800">
-                          {memory.description}
-                        </h3>
-                        <p className="text-sm text-blue-600/70">
-                          {memory.date}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Upcoming trip reminder */}
-              <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-md p-6 text-white border border-amber-100/20 relative overflow-hidden">
-                <div className="absolute inset-0 bg-amber-400/10 backdrop-blur-sm"></div>
-                <div className="relative z-10">
-                  <h2 className="text-xl font-semibold mb-2">Upcoming Trip</h2>
-                  <p className="mb-4">Barcelona, Spain - May 15, 2025</p>
-                  <div className="flex space-x-4">
-                    <button className="px-4 py-2 bg-white text-blue-600 rounded-full hover:shadow-lg transition-all">
-                      View Details
-                    </button>
-                    <button className="px-4 py-2 border border-white text-white rounded-full hover:bg-white/20 transition-all">
-                      Edit Trip
-                    </button>
-                  </div>
+              {loading.trips ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
                 </div>
-                <div className="absolute -top-1/2 -right-1/4 w-64 h-64 rounded-full bg-amber-200/20 blur-2xl"></div>
-                <div className="absolute -bottom-1/2 -left-1/4 w-80 h-80 rounded-full bg-blue-300/20 blur-3xl"></div>
-              </div>
+              ) : error.trips ? (
+                <div className="bg-red-50 text-red-500 p-4 rounded-lg">
+                  Error loading trips: {error.trips}
+                </div>
+              ) : upcomingTrip ? (
+                <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg shadow-md p-6 text-white border border-amber-100/20 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-amber-400/10 backdrop-blur-sm"></div>
+                  <div className="relative z-10">
+                    <h2 className="text-xl font-semibold mb-2">
+                      Upcoming Trip
+                    </h2>
+                    <p className="mb-4">
+                      {upcomingTrip.destination} -{" "}
+                      {formatDate(upcomingTrip.startDate)}
+                    </p>
+                    <div className="flex space-x-4">
+                      <button
+                        onClick={() => {
+                          setSelectedTrip(upcomingTrip);
+                          setActiveNav("trips");
+                        }}
+                        className="px-4 py-2 bg-white text-blue-600 rounded-full hover:shadow-lg transition-all"
+                      >
+                        View Details
+                      </button>
+                      <button className="px-4 py-2 border border-white text-white rounded-full hover:bg-white/20 transition-all">
+                        Edit Trip
+                      </button>
+                    </div>
+                  </div>
+                  <div className="absolute -top-1/2 -right-1/4 w-64 h-64 rounded-full bg-amber-200/20 blur-2xl"></div>
+                  <div className="absolute -bottom-1/2 -left-1/4 w-80 h-80 rounded-full bg-blue-300/20 blur-3xl"></div>
+                </div>
+              ) : (
+                <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg text-center shadow-sm">
+                  <p className="text-blue-600 mb-4">
+                    No upcoming trips planned.
+                  </p>
+                  <button
+                    onClick={() => handleNavChange("trips")}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700"
+                  >
+                    Plan a Trip
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
-      
+
       {/* Mobile action button */}
       {(activeNav === "dashboard" || activeNav === "memories") && (
         <button
@@ -603,12 +802,14 @@ const Dashboard = () => {
           <IconPlus />
         </button>
       )}
-      
+
       {/* Add Memory Modal */}
       <AddMemory
         isOpen={isAddMemoryOpen}
         onClose={toggleAddMemory}
+        onSuccess={handleAddMemorySuccess}
         username={user}
+        token={token} // Pass token if AddMemory needs it
       />
     </div>
   );
