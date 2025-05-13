@@ -7,9 +7,7 @@ const Destinations = () => {
   const [destinations, setDestinations] = useState([]);
   const navigate = useNavigate();
 
-  // Sample destinations data - in a real app, you would fetch this from an API
   useEffect(() => {
-    // Simulating API fetch with sample data
     const sampleDestinations = [
       {
         id: 1,
@@ -88,7 +86,6 @@ const Destinations = () => {
     setDestinations(sampleDestinations);
   }, []);
 
-  // Filter destinations based on region and search term
   const filteredDestinations = destinations.filter(dest => {
     const matchesRegion = selectedRegion === "all" || dest.region === selectedRegion;
     const matchesSearch = dest.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -97,21 +94,16 @@ const Destinations = () => {
     return matchesRegion && matchesSearch;
   });
 
-  // Handle destination click
   const handleDestinationClick = (destId) => {
-    // In a real app, navigate to destination details page
     console.log(`Navigate to destination ${destId}`);
     // navigate(`/destinations/${destId}`);
   };
 
-  // Handle save to plan
   const handleSaveToPlanner = (destId, event) => {
     event.stopPropagation();
     console.log(`Saved destination ${destId} to planner`);
-    // Here you would add to user's saved destinations
   };
 
-  // List of regions for filter tabs
   const regions = [
     { id: "all", name: "All Destinations" },
     { id: "asia", name: "Asia" },

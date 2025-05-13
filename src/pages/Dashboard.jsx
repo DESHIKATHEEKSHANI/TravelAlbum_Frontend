@@ -6,7 +6,6 @@ import Memories from "../components/Memories";
 import MyTrips from "../components/MyTrips";
 import Settings from "../components/Settings";
 
-// Icon components
 const IconHome = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -172,7 +171,6 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState("dashboard");
 
-  // State for backend data
   const [memories, setMemories] = useState([]);
   const [trips, setTrips] = useState([]);
   const [upcomingTrip, setUpcomingTrip] = useState(null);
@@ -234,8 +232,6 @@ const Dashboard = () => {
     fetchMemories();
   }, [user, token]);
 
-  // Fetch trips from backend
-  // Fetch trips from backend
   useEffect(() => {
     const fetchTrips = async () => {
       if (!user || !token) return;
@@ -243,7 +239,6 @@ const Dashboard = () => {
       try {
         setLoading((prev) => ({ ...prev, trips: true }));
 
-        // Use the full URL including http://localhost:8080
         const response = await fetch(`http://localhost:8080/api/trips?username=${user}`, {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -257,7 +252,6 @@ const Dashboard = () => {
     
         const data = await response.json();
 
-        // Filter out malformed trip data
         const validTrips = data.filter(trip => 
           trip && 
           trip.destination && 

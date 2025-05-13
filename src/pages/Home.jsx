@@ -9,18 +9,25 @@ import { useAuth } from "../AuthContext";
 import AboutUs from "../components/AboutUs";
 
 const Home = () => {
-  const [authMode, setAuthMode] = useState(null); // null, "login", or "register"
-  const [activeSection, setActiveSection] = useState("home"); // Track active section
+  const [authMode, setAuthMode] = useState(null);
+  const [activeSection, setActiveSection] = useState("home"); 
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, role} = useAuth();
 
-  // Check if user is already logged in
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token && !user) {
       navigate("/dashboard");
     }
   }, [navigate, user]);
+
+  const handleDashboardClick = () => {
+    if (role === "ADMIN") {
+      navigate("/admin/dashboard");
+    } else {
+      navigate("/dashboard");
+    }
+  };
 
   const handleSignInClick = () => {
     setAuthMode("login");
@@ -42,15 +49,14 @@ const Home = () => {
     setAuthMode(null);
   };
 
-  // Handle navigation to different sections
   const handleNavigate = (section) => {
     setActiveSection(section);
-    setAuthMode(null); // Close auth modal if open
+    setAuthMode(null); 
+    
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-800 via-blue-600 to-cyan-400 text-white overflow-hidden relative">
-      {/* Background Video - only show on home section */}
       {activeSection === "home" && (
         <div className="absolute inset-0 z-0 overflow-hidden">
           <div className="absolute inset-0 bg-black/30 z-10"></div>
@@ -150,7 +156,7 @@ const Home = () => {
                     ) : (
                       <button
                         className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-4 rounded-full font-medium hover:shadow-lg hover:shadow-blue-500/30 transition-all flex items-center justify-center space-x-3"
-                        onClick={() => navigate("/dashboard")}
+                        onClick={handleDashboardClick}
                       >
                         <span>Go to Dashboard</span>
                         <svg

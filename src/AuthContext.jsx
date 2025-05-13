@@ -12,6 +12,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null); // Store token in state
+  const [role, setRole] = useState(null); // Store user role
   const [loading, setLoading] = useState(true);
 
   // Function to check if user is authenticated on component mount
@@ -19,6 +20,7 @@ export const AuthProvider = ({ children }) => {
     const checkAuth = async () => {
       try {
         const storedToken = localStorage.getItem('token');
+        const storedRole = localStorage.getItem('userRole');
         
         if (storedToken) {
           try {
@@ -32,11 +34,11 @@ export const AuthProvider = ({ children }) => {
             
             if (response.ok) {
               const userData = await response.json();
-              // Store both user data and token
+              // Store user data, token and role
               setUser(userData);
               setToken(storedToken);
+              setRole(storedRole);
               return true;
-             // Set the token in state
             } else {
               // Token invalid or expired
               clearAuth();
@@ -57,11 +59,12 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  // Clear authentication data
   const clearAuth = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('userRole');
     setUser(null);
     setToken(null);
+    setRole(null);
   };
 
   // Login function
@@ -77,23 +80,53 @@ export const AuthProvider = ({ children }) => {
           password: password
         })
       });
-
+  
       if (!response.ok) {
         throw new Error("Login failed");
       }
-
-      const authToken = await response.text();
-      localStorage.setItem("token", authToken);
-      setUser(username);
-      setToken(authToken);
+  
+      // First, check the content type
+      const contentType = response.headers.get("content-type");
+      let data;
       
-      return { success: true };
+      if (contentType && contentType.includes("application/json")) {
+        // Parse as JSON
+        data = await response.json();
+        
+        // Check if it's the expected structure
+        if (data && typeof data === 'object') {
+          const token = data.token;
+          const role = data.role;
+          
+          if (token) {
+            // Store token and role
+            localStorage.setItem("token", token);
+            if (role) localStorage.setItem("userRole", role);
+            
+            // Update state
+            setToken(token);
+            if (role) setRole(role);
+            setUser(username);
+            
+            return { success: true, role: role };
+          }
+        }
+      } else {
+        // Try to parse as text (original method)
+        const textData = await response.text();
+        localStorage.setItem("token", textData);
+        setToken(textData);
+        setUser(username);
+        
+        return { success: true };
+      }
+      
+      throw new Error("Invalid response format");
     } catch (error) {
       console.error("Login error:", error);
       return { success: false, error: error.message };
     }
   };
-
   // Register function
   const register = async (username, email, password) => {
     try {
@@ -126,9 +159,16 @@ export const AuthProvider = ({ children }) => {
     clearAuth();
   };
 
+  // Check if user is admin
+  const isAdmin = () => {
+    return role === 'ADMIN';
+  };
+
   const value = {
     user,
-    token, // Make token available to consumers
+    token,
+    role,
+    isAdmin,
     login,
     logout,
     register,

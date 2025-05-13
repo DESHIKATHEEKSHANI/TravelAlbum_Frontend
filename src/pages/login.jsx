@@ -8,12 +8,11 @@ function Login({ onToggleAuth, onClose, onLoginSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const { login, user } = useAuth(); // Use the auth context
+  const { login, user, role } = useAuth(); 
 
-  // Check if user is already logged in
   useEffect(() => {
     if (user) {
-      navigate("/dashboard"); // Redirect to dashboard if already logged in
+      navigate("/dashboard"); 
     }
   }, [navigate, user]);
 
@@ -23,16 +22,23 @@ function Login({ onToggleAuth, onClose, onLoginSuccess }) {
     setError(null);
 
     try {
-      // Use the login function from AuthContext
-      await login(username, password);
+      const result = await login(username, password);
       
-      // Handle successful login
-      if (onLoginSuccess) {
-        onLoginSuccess(); // Call the success callback
-      } else if (onClose) {
-        onClose(); // Close the modal if this component is used in a modal
+      if (result.success) {
+        if (onLoginSuccess) {
+          onLoginSuccess(result.role); 
+        } else if (onClose) {
+          onClose(); // Close the modal if this component is used in a modal
+        } else {
+          // Navigate based on user role
+          if (result.role === 'ADMIN') {
+            navigate("/admin/dashboard");
+          } else {
+            navigate("/dashboard");
+          }
+        }
       } else {
-        navigate("/dashboard"); // Navigate to dashboard as fallback
+        throw new Error(result.error || "Login failed");
       }
     } catch (err) {
       setError("Login failed! Please check your credentials and try again.");
